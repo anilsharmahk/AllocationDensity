@@ -1,0 +1,4 @@
+| inputlookup devAllocationDNRremoved.csv 
+| search !type!=*
+|outputlookup devAllocationDNRremoved.csv
+
