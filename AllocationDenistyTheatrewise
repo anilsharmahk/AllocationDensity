@@ -1,0 +1,56 @@
+| inputlookup devAllocationDNRremoved.csv  | stats sum(TotalMinutesAllocated) as AllTotalMinutesAllocated by WeekNumber YearNumber  GroupedTheatreNames
+|table YearNumber WeekNumber  GroupedTheatreNames  AllTotalMinutesAllocated 
+| eval  TotalWeeklyAvailableMinutes = 
+          case(
+		  
+		       (GroupedTheatreNames IN ("THEATRE 2","THEATRE 5","THEATRE 7")           
+				AND
+				YearNumber IN ("2019")
+				AND
+				WeekNumber IN("01","16","17","19","22","35")
+				), "3600",
+				(GroupedTheatreNames IN ("THEATRE 2","THEATRE 5","THEATRE 7")                    
+				AND
+				YearNumber IN ("2019")
+				AND
+				WeekNumber IN("52")
+				), "2880",
+				
+			    (GroupedTheatreNames IN ("THEATRE 2","THEATRE 5","THEATRE 7")                    
+				AND
+				YearNumber IN ("2019")
+				AND
+				WeekNumber IN("02","03","04","05","06","07","08","09","10","11","12","13","14","15","18","20","21","23","24","25","26","27","28",
+				              "29","30","31","32","33","34","36","37","38","39","40","41","42","43","44","45","46","47","48","49","50","51"
+							  )
+				  ),"4320",
+				  				  
+				(GroupedTheatreNames IN ("MITU TH1/DS 1A","MITU TH2/DS 2A","MITU TR1/MINOPSA","THEATRE 1","THEATRE 6","THEATRE 3","THEATRE HYB/THEATRE 8","THEATRE 4")           
+				AND
+				YearNumber IN ("2019")
+				AND
+				WeekNumber IN("01","16","17","19","22","35")
+				), "2880",
+				
+				(GroupedTheatreNames IN ("MITU TH1/DS 1A","MITU TH2/DS 2A","MITU TR1/MINOPSA","THEATRE 1","THEATRE 6","THEATRE 3","THEATRE HYB/THEATRE 8","THEATRE 4")           
+				AND
+				YearNumber IN ("2019")
+				AND
+				WeekNumber IN("52")
+				), "2160",
+				
+			(GroupedTheatreNames IN ("MITU TH1/DS 1A","MITU TH2/DS 2A","MITU TR1/MINOPSA","THEATRE 1","THEATRE 6","THEATRE 3","THEATRE HYB/THEATRE 8","THEATRE 4")           
+				AND
+				YearNumber IN ("2019")
+				AND
+				WeekNumber IN("02","03","04","05","06","07","08","09","10","11","12","13","14","15","18","20","21","23","24","25","26","27","28",
+				              "29","30","31","32","33","34","36","37","38","39","40","41","42","43","44","45","46","47","48","49","50","51"
+							  )
+				  ),"3600",		
+				
+				
+				 1<2,"Data_not_yet_Calculated" 	  
+		  ) 
+    |table YearNumber WeekNumber  GroupedTheatreNames  AllTotalMinutesAllocated TotalWeeklyAvailableMinutes 
+| eval TotalAllocationDensity%= round(((AllTotalMinutesAllocated/TotalWeeklyAvailableMinutes)*100),0) 
+| xyseries  GroupedTheatreNames WeekNumber  TotalAllocationDensity%
