@@ -1,0 +1,106 @@
+index=meditech_schedule sourcetype=meditech:ip:allocations    Date>20190701   DrCode!="zzNULL"
+| sort 0 - _indextime | eval indextime=strftime(_indextime,"%Y-%m-%d %H:%M:%S")
+| dedup Date DrCode FromTime ToTime TheatreRoomCode  StartDate  EndDate sortby -indextime
+| eval A_start=strptime(Date.FromTime,"%Y%m%d%H%M"), A_end=strptime(Date.ToTime,"%Y%m%d%H%M"), Date_Surgeon=Date."_".DrCode, Surgeon=DrCode 
+| eval AllocationMinutes = round((A_end - A_start)/60,0)
+| eval DateEpoch0=Date." "."00:00:00",DateEpoch=strptime(DateEpoch0,"%Y%m%d %H:%M") , WeekNumber = strftime(DateEpoch,"%V") , YearNumber = strftime(DateEpoch,"%Y")
+| eval MonthName = strftime(DateEpoch,"%b"), WeekDay = strftime(DateEpoch,"%d")
+| eval OperationDateEpoch0=Date." "."00:00:00"
+| eval OperationDateEpoch=strptime(OperationDateEpoch0,"%Y%m%d %H:%M")
+| eval Day = strftime(OperationDateEpoch,"%A")
+| eval WeekdayP=WeekDay."_".Day
+| eval DailyAllocationConsistency=round((if(AllocationMinutes=0,0,(AllocationMinutes/720))*100),0)
+| eval StartDateCheckAllocationType=if((StartDate>=20190401),1,0)
+| eval EndDateCheckAllocationType=if((EndDate="zzNULL"),1,0)
+| eval EndDateCheck2AllocationType=if((EndDate>Date),1,0)
+| eval AdhocAllocationCheck_1=if((StartDate=Date),1,0)
+| eval AdhocAllocationCheck_2=if((EndDate=Date),1,0)
+| eval AdhocAllocationCheck_3=if(DrCode !="zzNULL",1,0)
+| eval AllocationType= if(((StartDateCheckAllocationType=1) AND ((EndDateCheckAllocationType=1) OR (EndDateCheck2AllocationType=1))),"Fixed_Allocation",
+if(((AdhocAllocationCheck_1=1) AND (AdhocAllocationCheck_2=1) AND (AdhocAllocationCheck_3=1)),"Adhoc_Allocation","NotDefined"))
+| eval dayofweekasnumber=strftime(DateEpoch,"%w")
+| eval dayofweekasnumber2=if(dayofweekasnumber=0,7,dayofweekasnumber)
+| eval WeekDayPivot=dayofweekasnumber2."_".Day."_".Date
+| eval WeekDayPivot2=dayofweekasnumber2."_".Day
+| table _time Date DrCode FromTime ToTime TheatreRoomCode  StartDate EndDate StartDateCheckAllocationType EndDateCheckAllocationType EndDateCheck2AllocationType  AdhocAllocationCheck_1 AdhocAllocationCheck_2 AdhocAllocationCheck_3 AllocationType  _time Date WeekNumber WeekDay Day WeekdayP YearNumber MonthName DrCode DrName FromTime ToTime TheatreRoomCode  AllocationMinutes DailyAllocationConsistency WeekDayPivot WeekDayPivot2
+| where AllocationType != "NotDefined"
+| table _time Date DrCode FromTime ToTime TheatreRoomCode AllocationMinutes  WeekNumber YearNumber
+| eval  GroupedTheatreNames = 
+case
+( TheatreRoomCode ="DS 1A" OR TheatreRoomCode ="MITU TH1","MITU TH1/DS 1A" ,
+  TheatreRoomCode ="DS 2A" OR TheatreRoomCode ="MITU TH2","MITU TH2/DS 2A" ,
+  TheatreRoomCode ="MINOPSA" OR TheatreRoomCode ="MITU TR1","MITU TR1/MINOPSA",
+  TheatreRoomCode ="THEATRE 8" OR TheatreRoomCode ="THEATRE HYB","THEATRE HYB/THEATRE 8",
+  
+  TheatreRoomCode !="THEATRE 8" AND TheatreRoomCode !="THEATRE HYB" 
+  AND TheatreRoomCode !="DS 1A" AND TheatreRoomCode !="MITU TH1"
+  AND TheatreRoomCode !="DS 2A" AND TheatreRoomCode !="MITU TH2"
+  AND TheatreRoomCode !="MINOPSA" AND TheatreRoomCode !="MITU TR1",TheatreRoomCode
+   )  
+   | table _time Date WeekNumber YearNumber DrCode FromTime ToTime TheatreRoomCode GroupedTheatreNames AllocationMinutes 
+   | eval pkey=Date.DrCode
+   
+   | table _time pkey Date WeekNumber YearNumber DrCode FromTime ToTime TheatreRoomCode GroupedTheatreNames AllocationMinutes 
+   | stats sum(AllocationMinutes) as TotalMinutesAllocated by pkey Date WeekNumber YearNumber DrCode GroupedTheatreNames
+   | table pkey Date WeekNumber YearNumber DrCode TotalMinutesAllocated  GroupedTheatreNames
+   
+   
+   | join type=left pkey
+   
+   [search  index=meditech_schedule sourcetype=meditech:ip:allocations  Date>20190701
+| sort 0 - _indextime 
+| eval indextime=strftime(_indextime,"%Y-%m-%d %H:%M:%S") 
+| eval DNRprocCode=substr(ProcCode, 1, 3) 
+| dedup Date ProcCode FromTime ToTime TheatreRoomCode StartDate EndDate sortby -indextime 
+| table  Date ProcCode FromTime ToTime TheatreRoomCode StartDate EndDate DNRprocCode 
+| search DNRprocCode IN("DNR","DN5") 
+| eval A_start=strptime(Date.FromTime,"%Y%m%d%H%M"), 
+      A_end=strptime(Date.ToTime,"%Y%m%d%H%M"), 
+	  Date_Surgeon=Date."_".DrCode, 
+	  Surgeon=DrCode
+
+	  
+| eval AllocationMinutes = round((A_end - A_start)/60,0)
+ 
+| eval 
+  DateEpoch0 = Date." "."00:00:00",
+  DateEpoch  = strptime(DateEpoch0,"%Y%m%d %H:%M") ,
+  WeekNumber = strftime(DateEpoch,"%V") , 
+  YearNumber = strftime(DateEpoch,"%Y") 
+  
+  
+| eval MonthName = strftime(DateEpoch,"%b"), 
+       WeekDay = strftime(DateEpoch,"%d") 
+	   
+| eval OperationDateEpoch0=Date." "."00:00:00" 
+
+| eval OperationDateEpoch=strptime(OperationDateEpoch0,"%Y%m%d %H:%M") 
+
+| eval Day = strftime(OperationDateEpoch,"%A") 
+
+| eval WeekdayP=WeekDay."_".Day 
+| eval DailyAllocationConsistency=round((if(AllocationMinutes=0,0,(AllocationMinutes/720))*100),0) 
+
+| eval CheckProcCode=if((DNRprocCode IN("DNR","DN5")),1,0) 
+| eval CheckStartDate=if((StartDate=Date),1,0) 
+| eval CheckEndDate=if((EndDate=Date),1,0) 
+
+| eval AllocationType= if(((CheckProcCode=1) AND ((CheckStartDate=1) AND (CheckEndDate=1))),"DNR_DN5", "NotDefined") 
+
+| eval dayofweekasnumber=strftime(DateEpoch,"%w") 
+| eval dayofweekasnumber2=if(dayofweekasnumber=0,7,dayofweekasnumber) 
+| eval WeekDayPivot=dayofweekasnumber2."_".Day."_".Date 
+| eval WeekDayPivot2=dayofweekasnumber2."_".Day 
+| table  Date ProcCode FromTime ToTime TheatreRoomCode StartDate EndDate DNRprocCode AllocationType 
+| where AllocationType != "NotDefined"  AND ProcCode !="DNR"
+|  eval DrCode=substr(ProcCode, 4, 6)
+| table  Date DrCode ProcCode FromTime ToTime TheatreRoomCode StartDate EndDate DNRprocCode AllocationType
+| eval pkey=Date.DrCode
+| table pkey Date DrCode ProcCode FromTime ToTime TheatreRoomCode StartDate EndDate DNRprocCode AllocationType
+| dedup pkey
+| table pkey ProcCode
+   ]
+   | fillnull
+   |    table  pkey Date WeekNumber YearNumber DrCode TotalMinutesAllocated GroupedTheatreNames  ProcCode 
+   | search ProcCode=0
+   | outputlookup devAllocationDNRremoved.csv
