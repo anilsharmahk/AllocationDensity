@@ -1,0 +1,22 @@
+| inputlookup  Dev_AllocationDnrAaggregate.csv  | stats sum(TotalMinutesAllocated) as AllTotalMinutesAllocated by WeekNumber YearNumber
+|table YearNumber WeekNumber  AllTotalMinutesAllocated
+| eval TotalAllocatedMinutes  =AllTotalMinutesAllocated
+   | table YearNumber WeekNumber TotalAllocatedMinutes
+   
+        | eval TotalWeeklyAvailableMinutes= 
+            case( 
+		             (WeekNumber IN ("51") ), "30240", 
+		             
+		             (WeekNumber IN ("01","16","17","19","22","35")), "33840",
+                     
+                     (WeekNumber IN ("52") ), "37440",
+                     
+                     (WeekNumber IN ("02","03","04","05","06","07","08","09","10","11","12","13","14","15","18","20","21","23","24","25","26","27","28","29","30","31","32","33","34","36","37","38",
+                     "39","40","41","42","43","44","45","46","47","48","49","50" )), "41760",                                    
+                           1>2,"Data_not_yet_Calculated" 
+                   ) 
+    | eval TotalAllocationDensity%= round(((TotalAllocatedMinutes/TotalWeeklyAvailableMinutes)*100),0) 
+                   
+     
+	| table YearNumber WeekNumber TotalAllocatedMinutes  TotalWeeklyAvailableMinutes TotalAllocationDensity%
+	| xyseries  YearNumber WeekNumber TotalAllocationDensity%
