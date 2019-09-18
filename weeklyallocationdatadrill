@@ -1,0 +1,20 @@
+|inputlookup Dev_DynamictableAllallocationwithDNR.csv
+| search ProcCode=0
+| table Date DrCode FromTime ToTime TheatreRoomCode AllocationMinutes WeekNumber YearNumber
+| eval  GroupedTheatreNames = 
+case
+( TheatreRoomCode ="DS 1A" OR TheatreRoomCode ="MITU TH1","MITU TH1/DS 1A" ,
+  TheatreRoomCode ="DS 2A" OR TheatreRoomCode ="MITU TH2","MITU TH2/DS 2A" ,
+  TheatreRoomCode ="MINOPSA" OR TheatreRoomCode ="MITU TR1","MITU TR1/MINOPSA",
+  TheatreRoomCode ="THEATRE 8" OR TheatreRoomCode ="THEATRE HYB","THEATRE HYB/THEATRE 8",
+  
+  TheatreRoomCode !="THEATRE 8" AND TheatreRoomCode !="THEATRE HYB" 
+  AND TheatreRoomCode !="DS 1A" AND TheatreRoomCode !="MITU TH1"
+  AND TheatreRoomCode !="DS 2A" AND TheatreRoomCode !="MITU TH2"
+  AND TheatreRoomCode !="MINOPSA" AND TheatreRoomCode !="MITU TR1",TheatreRoomCode
+   )  
+   | table Date WeekNumber YearNumber DrCode FromTime ToTime  GroupedTheatreNames AllocationMinutes 
+   | lookup clinician_lookup.csv Mnemonic As DrCode OUTPUT  Name As SurgeonName
+   | sort Date 
+   | search WeekNumber =33 AND  GroupedTheatreNames="THEATRE 4"
+   | table Date WeekNumber YearNumber DrCode SurgeonName  FromTime ToTime  GroupedTheatreNames AllocationMinutes
